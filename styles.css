@@ -1,0 +1,90 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: Arial, sans-serif;
+  background-color: #f9f9f9;
+}
+
+header {
+  background-color: #4CAF50;
+  color: white;
+  padding: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.logo {
+  font-size: 1.5rem;
+}
+
+nav a {
+  margin-left: 1rem;
+  text-decoration: none;
+  color: white;
+}
+
+.container {
+  display: flex;
+  justify-content: space-around;
+  padding: 2rem;
+}
+
+.left-column,
+.right-column {
+  width: 45%;
+}
+
+.panel {
+  background-color: white;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.panel h2 {
+  margin-bottom: 1rem;
+  color: #4CAF50;
+}
+
+.controls {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.controls button {
+  flex: 1;
+  padding: 0.5rem;
+  margin: 0 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+#expense-chart {
+  width: 100%;
+  height: 300px; /* 根据需要调整高度 */
+}
+
+#air-conditioner-control input[type="range"] {
+  width: 100%;
+}
+
+#display-temp {
+  font-size: 2rem;
+  text-align: center;
+  margin-top: 1rem;
+}
+
+#fan-speed-icon {
+  font-size: 2rem;
+  text-align: center;
+  margin-top: 1rem;
+}

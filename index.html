@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hotel Room Control</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- 引入Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <header>
+        <div class="logo">Logo</div>
+        <nav>
+            <a href="#">Menu 1</a>
+            <a href="#">Menu 2</a>
+            <a href="#">Menu 3</a>
+        </nav>
+    </header>
+
+    <main>
+        <div class="container">
+            <div class="left-column">
+                <section id="welcome-section" class="panel">
+                    <h2>欢迎来到巴普特廉价酒店</h2>
+                    <p>尊敬的顾客，这里是您的理想住宿伴侣。</p>
+                </section>
+
+                <section id="air-conditioner-control" class="panel">
+                    <h2>空调面板</h2>
+                    <div class="controls">
+                        <button>升温</button>
+                        <button>降温</button>
+                        <button>开关机</button>
+                        <button>调风速</button>
+                    </div>
+                    <label for="ac-temp">空调温度:</label>
+                    <input type="range" id="ac-temp" min="18" max="30" value="25">
+                    <span id="display-temp">25°</span>
+                    <div id="fan-speed-icon"></div>
+                </section>
+            </div>
+
+            <div class="right-column">
+                <section id="room-temperature" class="panel">
+                    <h2>房间温度</h2>
+                    <span id="current-temp">26.5°</span>
+                </section>
+
+                <section id="expenses" class="panel">
+                    <h2>花费</h2>
+                    <canvas id="expense-chart"></canvas>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <script src="scripts.js"></script>
+</body>
+</html>
