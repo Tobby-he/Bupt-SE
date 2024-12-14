@@ -1,262 +1,280 @@
-// 服务器配置
-const SERVER_URL = "http://127.0.0.1:8000/api/";
-
-// 全局变量
-let currentTemp = 25;
-let fanSpeed = 2; // 默认中速
+let defaultTemp = 24;
+let fanSpeed = 1; // 0 代表关闭，1,2,3 代表低中高风速
 let isOn = false;
-let targetTemp = 25;
+let targetTemp = 24;
+let currentTemp = 24;
+let pollingInterval = null;
+let roomId = 1;
+let pollingErrorCount = 0;
+// 添加服务器地址配置
+const SERVER_URL = "http://127.0.0.1:8000/"; // 这里需要替换为您的Django服务器地址
 
-// 检查登录状态
-document.addEventListener("DOMContentLoaded", async () => {
-  const currentCustomer = localStorage.getItem("currentCustomer");
-  if (!currentCustomer) {
-    window.location.href = "../html/login.html";
+// 添加 API 对象定义
+const api = {
+  async getRoomsStatus(roomId) {
+    //
+    const response = await fetch("http://127.0.0.1:8000/api/room_status/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ room_id:roomId, }),
+    });
+    return response.json();
+  },
+  async postSetTemperature(data) {
+    const response = await fetch(SERVER_URL + "api/temperature/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        targetTemp: data.temperature,
+        room_id: roomId,
+      }),
+    });
+    return response.json();
+  },
+
+  async postTurnOn(data) {
+    const response = await fetch(SERVER_URL + "api/power/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        isOn: true,
+        room_id: roomId,
+      }),
+    });
+    return response.json();
+  },
+
+  async postTurnOff(data) {
+    const response = await fetch(SERVER_URL + "api/power/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        isOn: false,
+        room_id: roomId,
+      }),
+    });
+    return response.json();
+  },
+
+  async postSetSpeed(data) {
+    const response = await fetch(SERVER_URL + "api/fan-speed/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        fanSpeed: data.speed,
+        room_id: roomId,
+      }),
+    });
+    return response.json();
+  },
+};
+
+// 添加错误处理函数
+function showError(message) {
+  alert(message);
+}
+
+// 修改 sendToServer 函数
+async function sendToServer(action, data) {
+  try {
+    let response;
+    switch (action) {
+      case "tempSlider":
+        response = await api.postSetTemperature({
+          temperature: data.temperature,
+        });
+        break;
+      case "togglePower":
+        response = data.isOn
+          ? await api.postTurnOn(data)
+          : await api.postTurnOff(data);
+        break;
+      case "changeFanSpeed":
+        response = await api.postSetSpeed({
+          speed: data.speed,
+        });
+        break;
+
+
+    }
+    if (response && response.status === "error") {
+      showError(response.message);
+    }
+  } catch (error) {
+    console.error("发送请求失败:", error);
+    showError("连接服务器失败，请检查网络连接");
+  }
+}
+function setRoomId(newRoomId) {
+  roomId = parseInt(newRoomId, 10); // 10 表示按十进制解析
+  console.log(`房间 ID 已更新为: ${roomId}`);
+}
+function setTemperature() {
+  if (!isOn) return;
+
+  const tempInput = document.getElementById("temp-input");
+  const newTemp = parseInt(tempInput.value);
+
+  if (newTemp < 18 || newTemp > 30) {
+    alert("温度必须在18-30度之间");
+    tempInput.value = defaultTemp;
     return;
   }
 
-  window.currentCustomer = JSON.parse(currentCustomer);
-
-  // 显示房间号
-  const roomNumberElement = document.getElementById("current-room-number");
-  if (roomNumberElement) {
-    roomNumberElement.textContent = window.currentCustomer.roomId;
-  }
-
-  // 获取初始空调状态
-  await getACStatus();
+  sendToServer("tempSlider", { temperature: newTemp });
+  targetTemp = newTemp;
   updateDisplayTemp();
-  updateFanSpeedIcon();
+}
 
-  // 添加温度滑块事件监听
-  const tempSlider = document.getElementById("ac-temp");
-  if (tempSlider) {
-    tempSlider.addEventListener("change", async () => {
-      if (isOn) {
-        const newTemp = parseInt(tempSlider.value);
-        await setTemperature(newTemp);
-      }
-    });
-  }
-
-  // 添加温度输入框事件监听
+function togglePower() {
+  isOn = !isOn;
   const tempInput = document.getElementById("temp-input");
-  if (tempInput) {
-    tempInput.addEventListener("change", async () => {
-      if (isOn) {
-        const newTemp = parseInt(tempInput.value);
-        await setTemperature(newTemp);
-      }
-    });
+  const setTempButton = tempInput.nextElementSibling;
+
+  if (isOn) {
+    document.getElementById("current-temp").value = currentTemp;
+    document.getElementById("display-temp").value = targetTemp;
+    tempInput.disabled = false;
+    setTempButton.disabled = false;
+    updateDisplayTemp();
+  } else {
+    document.getElementById("display-temp").textContent = "关";
+    tempInput.disabled = true;
+    setTempButton.disabled = true;
+    tempInput.value = "";
+  }
+  sendToServer("togglePower", { isOn: isOn });
+}
+
+function changeFanSpeed() {
+  if (isOn) {
+    fanSpeed = fanSpeed + 1;
+    if (fanSpeed > 3) {
+      fanSpeed = 0;
+    }
+    updateFanSpeedIcon();
+    if (fanSpeed > 0) {
+      sendToServer("changeFanSpeed", { speed: fanSpeed });
+    }
+  }
+}
+
+
+// 滑动条变化时更新显示温度
+document.getElementById("ac-temp").addEventListener("input", function () {
+  if (isOn) {
+    currentTemp = parseInt(this.value, 10);
+    updateDisplayTemp();
+    sendToServer("tempSlider", { temperature: currentTemp });
   }
 });
 
-// 获取空调状态
-async function getACStatus() {
-  try {
-    const response = await fetch(SERVER_URL + "ac-status/", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        room_id: window.currentCustomer.roomId,
-      }),
-    });
 
-    const data = await response.json();
-    if (data.status === "success") {
-      isOn = data.data.is_on;
-      currentTemp = data.data.current_temp;
-      targetTemp = data.data.target_temp || 25;
-      fanSpeed = data.data.fan_speed || 2;
-
-      // 更新界面
-      updateDisplayTemp();
-      updateFanSpeedIcon();
-
-      // 更新输入框状态
-      const tempInput = document.getElementById("temp-input");
-      const setTempButton = tempInput.nextElementSibling;
-      tempInput.disabled = !isOn;
-      setTempButton.disabled = !isOn;
-
-      if (isOn) {
-        tempInput.value = targetTemp;
-        document.getElementById("ac-temp").value = targetTemp;
-      }
-    }
-  } catch (error) {
-    console.error("获取空调状态失���:", error);
-  }
-}
-
-// 开关机
-async function togglePower() {
-  try {
-    const response = await fetch(SERVER_URL + "power/", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        isOn: !isOn,
-        room_id: window.currentCustomer.roomId,
-        mode: "制冷", // 添加默认模式
-      }),
-    });
-
-    const data = await response.json();
-    if (data.status === "success") {
-      isOn = !isOn;
-      const tempInput = document.getElementById("temp-input");
-      const setTempButton = tempInput.nextElementSibling;
-      const fanSpeedButton = document.querySelector(
-        'button[onclick="changeFanSpeed()"]'
-      );
-
-      if (isOn) {
-        // 开机后启用所有控制
-        tempInput.disabled = false;
-        setTempButton.disabled = false;
-        fanSpeedButton.disabled = false;
-
-        // 设置默认温度和风速
-        targetTemp = 25;
-        fanSpeed = 2;
-
-        // 更新显示
-        await getACStatus();
+function startPolling(interval = 5000) {
+  stopPolling();
+  pollingInterval = setInterval(async () => {
+    try {
+      const response = await api.getRoomsStatus(roomId);
+      if (response && response.status === "success") {
+        pollingErrorCount = 0;
+        updateRoomState(response.data);
       } else {
-        // 关机时禁用所有控制
-        tempInput.disabled = true;
-        setTempButton.disabled = true;
-        fanSpeedButton.disabled = true;
-        document.getElementById("display-temp").textContent = "关";
+        console.error("获取房间状态失败:", response.message);
+        pollingErrorCount++;
       }
-
-      // 更新界面显示
-      updateDisplayTemp();
-      updateFanSpeedIcon();
+    } catch (error) {
+      console.error("轮询请求失败:", error);
+      pollingErrorCount++;
+      showError("无法连接到服务器，请检查网络。");
     }
-  } catch (error) {
-    console.error("开关机操作失败:", error);
-    alert("开关机操作失败，请重试");
+
+    if (pollingErrorCount >= 5) {
+      stopPolling();
+      showError("轮询失败次数过多，已停止轮询。请检查网络或服务器。");
+      setTimeout(() => {
+        pollingErrorCount = 0;
+        startPolling(interval); // 尝试重新启动轮询
+      }, 5000);
+    }
+  }, interval);
+}
+// 1111111111111111111111111111111111111111111111111111暂停轮询
+function stopPolling() {
+  if (pollingInterval) {
+    clearInterval(pollingInterval);
+    pollingInterval = null;
   }
 }
+// 22222222222222222222222222222222222222222222222222222222更新状态
+function updateRoomState(data) {
+  if (!data) return;
 
-// 设置温度
-async function setTemperature(newTemp) {
-  if (!isOn) {
-    alert("请先开启空调");
-    updateDisplayTemp(); // 恢复显示
-    return;
-  }
+  isOn = data.isOn1;
+  togglePowerUI(isOn);
 
-  if (!newTemp) {
-    const tempInput = document.getElementById("temp-input");
-    newTemp = parseInt(tempInput.value);
-  }
+  targetTemp = data.targetTemp
+  currentTemp = data.currentTemp;
+  updateDisplayTemp();
 
-  if (isNaN(newTemp) || newTemp < 18 || newTemp > 30) {
-    alert("请输入18-30之间的温度");
-    updateDisplayTemp(); // 恢复显示
-    return;
-  }
-
-  try {
-    const response = await fetch(SERVER_URL + "temperature/", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        targetTemp: newTemp,
-        room_id: window.currentCustomer.roomId,
-      }),
-    });
-
-    const data = await response.json();
-    if (data.status === "success") {
-      targetTemp = newTemp;
-      updateDisplayTemp();
-      console.log(`温度已设置为: ${newTemp}°C`);
-    } else {
-      alert(data.message || "设置温度失败");
-      updateDisplayTemp(); // 恢复显示
-    }
-  } catch (error) {
-    console.error("设置温度失败:", error);
-    alert("设置温度失败，请重试");
-    updateDisplayTemp(); // 恢复显示
-  }
+  fanSpeed = data.fanSpeed;
+  updateFanSpeedIcon();
 }
-
-// 调整风速
-async function changeFanSpeed() {
-  if (!isOn) {
-    alert("请先开启空调");
-    return;
-  }
-
-  const nextSpeed = (fanSpeed % 3) + 1; // 1->2->3->1
-  console.log(`尝试设置风速为: ${nextSpeed}`);
-
-  try {
-    const response = await fetch(SERVER_URL + "fan-speed/", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        fanSpeed: nextSpeed,
-        room_id: window.currentCustomer.roomId,
-      }),
-    });
-
-    const data = await response.json();
-    if (data.status === "success") {
-      fanSpeed = nextSpeed;
-      updateFanSpeedIcon();
-      console.log(`风速已成功调整为: ${nextSpeed}`);
-    } else {
-      console.error("调整风速失败:", data.message);
-      alert(data.message || "调整风速失败");
-    }
-  } catch (error) {
-    console.error("调整风速失败:", error);
-    alert("调整风速失败，请重试");
-  }
-}
-
-// 更新温度显示
 function updateDisplayTemp() {
+  if (isOn) {
+    const tempElement1 = document.getElementById("display-temp");
+    const tempElement2 = document.getElementById("current-temp");
+    tempElement1.textContent = `${targetTemp}°`;
+    tempElement2.textContent = `${currentTemp}°`;
+    //document.getElementById("current-temp").value = currentTemp;
+    document.getElementById("temp-input").value = targetTemp;
+    //document.getElementById("display-temp").value = targetTemp;
+    //document.getElementById("display-input").value = targetTemp;
+  }
+}
+function togglePowerUI(isOn) {
   const tempInput = document.getElementById("temp-input");
-  const tempSlider = document.getElementById("ac-temp");
+  const setTempButton = tempInput.nextElementSibling;
   const displayTemp = document.getElementById("display-temp");
-  const currentTempDisplay = document.getElementById("current-temp");
 
   if (isOn) {
+    tempInput.disabled = false;
+    setTempButton.disabled = false;
     displayTemp.textContent = `${targetTemp}°`;
-    currentTempDisplay.textContent = `${currentTemp}°`;
-    tempInput.value = targetTemp;
-    tempSlider.value = targetTemp;
   } else {
+    tempInput.disabled = true;
+    setTempButton.disabled = true;
     displayTemp.textContent = "关";
-    tempInput.value = "";
-    tempSlider.value = 25;
   }
-}
-
-// 更新风速图标
+  }
 function updateFanSpeedIcon() {
   const iconElement = document.getElementById("fan-speed-icon");
+
   let bars = "";
   for (let i = 1; i <= 3; i++) {
     bars += `<span class="speed-bar${i <= fanSpeed ? " active" : ""}"></span>`;
   }
   iconElement.innerHTML = bars;
 }
+document.addEventListener("DOMContentLoaded", async () => {
+  const response = await api.getRoomsStatus(roomId);
+  if (response && response.status === "success") {
+    updateRoomState(response.data);
+  }
+  startPolling(5000);
 
-// 定期更新状态
-setInterval(getACStatus, 5000); // 每5秒更新一次状态
+});
+
+ 页面关闭时停止轮询
+window.addEventListener("beforeunload", () => {
+  stopPolling();
+});

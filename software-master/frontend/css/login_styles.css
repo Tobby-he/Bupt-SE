@@ -1,51 +1,60 @@
 /* styles.css */
 
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
-
-body {
-    margin: 0;
-    padding: 0;
-    height: 100vh;
-    font-family: Arial, sans-serif;
-    background-image: url('../assest/background.png');
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
-    display: flex;
-    flex-direction: column;
-}
-
+/* Style for the header */
 header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 10px 20px;
-    background-color: rgba(51, 51, 51, 0.8);
+    background-color: #333;
 }
-
+body {
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+    background-image: url('../assest/background.png'); /* 这里替换为你的背景图片路径 */
+    background-size: cover; /* 确保背景图充满整个视口 */
+    background-position: center; /* 背景图居中 */
+    background-repeat: no-repeat; /* 背景图不重复 */
+    font-family: Arial, sans-serif;
+}
+/* Style for the logo */
 .logo img {
     height: 50px;
     width: auto;
 }
 
+/* Style for the navigation menu */
+nav {
+    display: flex;
+    justify-content: flex-end;
+}
+
+nav a {
+    color: white;
+    text-decoration: none;
+    margin: 0 15px;
+    font-size: 16px;
+}
+
+nav a:hover {
+    text-decoration: underline;
+}
+
+/* Style for the login container */
 .login-container {
-    max-width: 400px;
-    margin: 40px auto;
+    background-color: rgba(255, 255, 255, 0.3);
     padding: 30px;
-    background-color: rgba(255, 255, 255, 0.9);
     border-radius: 8px;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    width: 300px;
+    margin: 50px auto;
     backdrop-filter: blur(10px);
 }
 
-.login-container h2 {
+h2 {
     text-align: center;
     margin-bottom: 20px;
-    color: #333;
 }
 
 .identity-selection {
@@ -54,79 +63,74 @@ header {
     margin-bottom: 20px;
 }
 
-.login-type-btn {
-    flex: 1;
+.identity-selection button {
+    width: 48%;
     padding: 10px;
-    margin: 0 5px;
+    background-color: #4CAF50;
+    color: white;
     border: none;
     border-radius: 4px;
-    background: #f0f0f0;
     cursor: pointer;
-    transition: background-color 0.3s;
 }
 
-.login-type-btn:hover {
-    background: #e0e0e0;
+.identity-selection button:hover {
+    background-color: #45a049;
 }
 
-.login-type-btn.active {
-    background: #3498db;
-    color: white;
+.input-group {
+    margin-bottom: 20px;
 }
 
-.login-form {
-    display: none;
-}
-
-.form-group {
-    margin-bottom: 15px;
-}
-
-.form-group label {
+.input-group label {
     display: block;
     margin-bottom: 5px;
-    color: #666;
+    font-size: 14px;
+    color: #555;
 }
 
-.form-group input {
+.input-group input {
     width: 100%;
     padding: 8px;
     border: 1px solid #ddd;
     border-radius: 4px;
+    font-size: 16px;
 }
 
-.submit-btn {
+button {
     width: 100%;
     padding: 10px;
-    background: #3498db;
+    background-color: #4CAF50;
     color: white;
     border: none;
     border-radius: 4px;
+    font-size: 16px;
     cursor: pointer;
-    margin-top: 10px;
 }
 
-.submit-btn:hover {
-    background: #2980b9;
+button:hover {
+    background-color: #45a049;
 }
 
 .error-message {
-    color: #e74c3c;
+    color: red;
+    font-size: 14px;
     text-align: center;
     margin-top: 10px;
 }
 
 footer {
-    background-color: #333;
-    color: white;
-    text-align: center;
+    position: fixed;
+    bottom: 0;
+    width: 100%;
     padding: 10px 0;
-    margin-top: auto;
+    background-color: #333;
+    text-align: center;
 }
 
 footer a {
-    color: white;
+    color: #fff;
     text-decoration: none;
+    font-size: 14px;
 }
 
 footer a:hover {
