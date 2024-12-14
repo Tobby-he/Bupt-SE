@@ -3,29 +3,50 @@ from datetime import datetime,timedelta
 import threading
 import warnings
 import math
+import time
 warnings.filterwarnings('ignore', category=RuntimeWarning)
 
 # 房间类，表示酒店中的一个房间
 class Room:
     # 将 RoomList 和 initTempList 变为类变量，所有实例共享
     RoomList = []
-    initTempList1 = [22, 24, 26, 23, 25]  # 作为类变量定义
-    initTempList2 = [10, 12, 14, 11, 13]  # 作为类变量定义
+    initTempList1 = [32, 28, 30, 29, 35]  # 作为类变量定义
+    initTempList2 = [10, 15, 18, 12, 14]  # 作为类变量定义
+    
+    @classmethod
+    def getActualRoomId(cls, index):
+        """将索引转换为实际房间号"""
+        return 101 + index
+    
+    @classmethod
+    def getListIndex(cls, roomId):
+        """将实际房间号转换为列表索引"""
+        return roomId - 101
+    
     def __init__(self, roomId, initialTemp=None, currentTemp=None, Timer=None):
-        self.roomId = roomId
+        self.roomId = roomId  # roomId 现在是 101-105
         self.initialTemp = initialTemp
         self.currentTemp = currentTemp
         self.Timer = None
+        # 添加新的属性
+        self.isOccupied = False  # 房间是否被占用
+        self.currentCustomerId = None  # 当前入住的顾客ID
+        self.checkInTime = None  # 入住时间
+        self.checkOutTime = None  # 退房时间
+        self.ac_fee = 0  # 添加空调费用属性
+        self.last_fee_update = None  # 上次费用更新时间
+        self.total_temp_change = 0  # 添加总温度变化量属性
     @classmethod
-    def getInitialTemp(cls,roomId,Mode):
-        if roomId > len(cls.initTempList1):
+    def getInitialTemp(cls, roomId, Mode):
+        index = cls.getListIndex(roomId)
+        if index >= len(cls.initTempList1) or index < 0:
             print(f"房间号超出范围 - ID: {roomId}")
             return 0
         else:
             if Mode == "制冷":
-                return cls.initTempList1[roomId - 1]
+                return cls.initTempList1[index]
             else:
-                return cls.initTempList2[roomId - 1]
+                return cls.initTempList2[index]
     @classmethod
     def getCurrentTemp(cls, roomId):
         room = cls.getRoom(roomId)
@@ -38,15 +59,18 @@ class Room:
     def createRoom(cls, Mode):
         """创建新房间"""
         # 获取新房间的ID
-        newRoomId = len(cls.RoomList) + 1
-        if newRoomId > len(cls.initTempList1):
+        newRoomId = cls.getActualRoomId(len(cls.RoomList))
+        index = cls.getListIndex(newRoomId)
+        
+        if index >= len(cls.initTempList1):
             print(f"房间号超出范围 - ID: {newRoomId}")
             return None
         # 从初始温度列表中获取对应的温度
         if Mode == "制冷":
-            initTemp = cls.initTempList1[newRoomId - 1]
+            initTemp = cls.initTempList1[index]
         else:
-            initTemp = cls.initTempList2[newRoomId - 1]
+            initTemp = cls.initTempList2[index]
+            
         # 创建新房间实例
         newRoom = Room(
             roomId=newRoomId,
@@ -54,13 +78,29 @@ class Room:
             currentTemp=initTemp,
             Timer=None
         )
+        
         # 添加到房间列表
         cls.RoomList.append(newRoom)
-        newRoom.Timer = RoomTimer(newRoomId)
-        newRoom.Timer.startTimer()
         print(f"创建新房间 - ID: {newRoomId}, 初始温度: {initTemp}°C")
         return newRoom
-
+    @classmethod
+    def fiveRoomTimerStart(cls):
+        room1 = Room.getRoom(101)
+        if not room1.Timer:
+            room2 = Room.getRoom(102)
+            room3 = Room.getRoom(103)
+            room4 = Room.getRoom(104)
+            room5 = Room.getRoom(105)
+            room1.Timer = RoomTimer(101)
+            room1.Timer.startTimer()
+            room2.Timer = RoomTimer(102)
+            room2.Timer.startTimer()
+            room3.Timer = RoomTimer(103)
+            room3.Timer.startTimer()
+            room4.Timer = RoomTimer(104)
+            room4.Timer.startTimer()
+            room5.Timer = RoomTimer(105)
+            room5.Timer.startTimer()
     @classmethod  # 使用 @classmethod 代替 @staticmethod
     def destroyRoom(cls, roomId):
         """销毁指定房间"""
@@ -76,16 +116,21 @@ class Room:
     def getRoom(cls, roomId):
         try:
             roomId = int(roomId)  # 将 roomId 转换为整数类型
+            if roomId < 101 or roomId > 105:
+                print(f"房间号 {roomId} 超出有效范围(101-105)")
+                return None
+            
+            for room in cls.RoomList:
+                if room.roomId == roomId:
+                    return room
+
+            print(f"未找到房间 - ID: {roomId}")
+            print(f"当前房间表: {[room.roomId for room in cls.RoomList]}")
+            return None
+        
         except ValueError:
             print(f"无效的房间 ID: {roomId}，无法转换为整数")
             return None
-
-        for room in cls.RoomList:
-            if room.roomId == roomId:
-                return room
-
-        print(f"未找到房间 - ID: {roomId}")
-        return None
     @classmethod
     def returnDeathTemp(cls, roomId):
         room = cls.getRoom(roomId)
@@ -95,6 +140,9 @@ class Room:
         timer.start()
     @classmethod
     def updateTemp(cls, roomId):
+        ''' 
+        这个函数10秒钟运行一次，目的是10秒更新一次房间的温度，因为房间有五个，所以会有五个updateTemp函数10秒运行一次
+        '''
         # 先看有没有房间对应的空调对象
         airConditioner = AirConditioner.findAirConditioner(roomId)
         # 再找对应的房间对象
@@ -123,7 +171,21 @@ class Room:
             else:
                 # 如果未到达目标温度，则看是否在服务队列里
                 if ServiceQueue.contains(roomId):
-                    room.currentTemp = AirConditioner.calculateTemp(roomId)
+                    ''' 
+                    在这个if下，第roomID个房间在服务队列里且风速为
+                    airConditioner.fanSpeed
+                    所以这时需要计费
+                    在这里，你可以创一个详单，以及计算费用
+                    因为是10秒运行一次这个函数，所以计算费用的思路应该是更新，而不是一口气算出来
+                    比如，费用=费用+风速（这里省略了风速后面的1分钟系数，直接加的，可以看上面，温度计算也是这个逻辑）
+                    '''
+
+                    old_temp = room.currentTemp  # 记录之前的温度
+                    room.currentTemp = airConditioner.calculateTemp(roomId)
+                    # 计算温度变化量（取绝对值）
+                    temp_change = abs(room.currentTemp - old_temp)
+                    room.total_temp_change += temp_change
+                    print(f"房间{roomId} 温度变化：{temp_change:.1f}度而且在服务队列里，累计变化：{room.total_temp_change:.1f}度")
                 else:
                     # 什么都不做
                     a = 1
@@ -143,9 +205,6 @@ class Room:
                 else:
                     room.currentTemp = room.initialTemp
             print(f"{roomId}回温后，当前温度：{room.currentTemp}°C")
-            # if roomId == 1:
-            #     airConditioner = AirConditioner.findAirConditioner(1)
-            #     print(f"房间1的回温次数：{airConditioner.reachTempCount},是否到达目标温度：{airConditioner.reachTemp}")
     @classmethod
     def updateState(cls, roomId):
         # 先看有没有房间对应的空调对象
@@ -197,6 +256,7 @@ class AirConditioner:
         self.reachTemp = False
         self.reachTempCount = 0
         self.mode = mode
+        self.truemode = mode
     @classmethod
     def getFanSpeed(cls, roomId):
         airConditioner = cls.findAirConditioner(roomId)
@@ -229,7 +289,21 @@ class AirConditioner:
     @classmethod
     def setTargetTemp(cls, roomId, targetTemp):
         airConditioner = cls.findAirConditioner(roomId)
-        airConditioner.targetTemp = targetTemp
+        if airConditioner.truemode == "制冷":
+            if targetTemp > 28:
+                airConditioner.targetTemp = 28
+            if targetTemp < 18:
+                airConditioner.targetTemp = 18
+        if airConditioner.truemode == "制热":
+            if targetTemp > 25:
+                airConditioner.targetTemp = 25
+            if targetTemp < 18:
+                airConditioner.targetTemp = 18
+        currentTemp = Room.getCurrentTemp(roomId)
+        if currentTemp > targetTemp:
+            airConditioner.mode = "制冷"
+        if currentTemp < targetTemp:
+            airConditioner.mode = "制热"
         print(f"设置目标温度：{targetTemp}°C")
 
     @classmethod
@@ -254,6 +328,7 @@ class AirConditioner:
         else:
             print(f"无效的空调模式：{AirConditionerMode}")
             return None
+        Room.fiveRoomTimerStart()
         roomId = room.roomId
         # 创建新的空调实例
         newAirConditioner = AirConditioner(
@@ -401,7 +476,7 @@ class ServiceQueue:
 
     @classmethod
     def contains(cls, roomId):
-        """检查房间是否在服务队列中"""
+        """检查房���是否在服务队列中"""
         return any(sq["roomId"] == roomId for sq in cls.serviceQueue)
 
     @classmethod
@@ -433,7 +508,7 @@ class ServiceQueue:
         for sq in cls.serviceQueue:
             if sq["roomId"] == roomId:
                 sq["fanSpeed"] = fanSpeed
-                print(f"更新风速 - 房间: {roomId}, 新风速: {fanSpeed}")
+                print(f"更新风速 - 房��: {roomId}, 新风速: {fanSpeed}")
                 i=1
                 break
         if i==0:
@@ -565,7 +640,7 @@ class Scheduler:
                 return
             # 检查服务队列长度
             room = Room.getRoom(roomId)
-            airConditioner = AirConditioner.powerOn(room,"制冷")
+            airConditioner = AirConditioner.powerOn(room,"制热")
             if serviceQueue.GetListLength() < self.maxServiceObjects:
                 # 服务对数小于上限，直接分配服务对象
                 serviceQueue.addServiceQueue(roomId, fanSpeed)
@@ -829,7 +904,7 @@ class returnTempTimer:
         remaining_time = timedelta(minutes=25) - elapsed_time
 
         if remaining_time <= timedelta(seconds=0):
-            return "0分 0秒"  # 如果剩余时间小于等于 0，表示计时结束
+            return "0分 0秒"  # ��果剩余时间小于等于 0，表示计时结束
 
         # 将剩余时间转换为分钟和秒
         remaining_minutes = remaining_time.seconds // 60
@@ -845,6 +920,82 @@ class returnTempTimer:
         if self.timer:
             self.timer.cancel()
 
+# class RoomTimer:
+#     def __init__(self, newroomId):
+#         self.running = False
+#         self.count = 0  # 用于追踪计数
+#         self.roomId = newroomId
+
+#     def startTimer(self):
+#         """启动定时器"""
+#         if not self.running:
+#             self.running = True
+#             self.thread = threading.Thread(target=self.run)
+#             self.thread.daemon = True
+#             self.thread.start()
+#             print(f"{self.roomId}空调关机，开始回温")  # 这里打印回温开始信息
+
+#     def run(self):
+#         """定时器运行函数"""
+#         while self.running:
+#             time.sleep(self.interval)  # 等待一段时间
+#             if not AirConditioner.findAirConditioner(self.roomId):
+#                 # 如果空调关闭，执行回温
+#                 if abs(self.currentTemp - self.initialTemp) > 0.1:
+#                     # 当前温度逐渐接近初始温度
+#                     if self.currentTemp < self.initialTemp:
+#                         self.currentTemp += 0.5
+#                     else:
+#                         self.currentTemp -= 0.5
+#                     print(f"{self.roomId}回温后，当前温度：{self.currentTemp}°C")  # 这里打印回温后的温度
+
+#     def cancel(self):
+#         """取消计时器"""
+#         self.running = False
+#         print("计时器停止...")
+
+#     def _first_cycle_A(self):
+#         """第一次循环调用A"""
+#         if not self.running:
+#             return
+#         self._call_function_A()
+#         # 1秒后调用B
+#         threading.Timer(1, self._first_cycle_B).start()
+
+#     def _first_cycle_B(self):
+#         """第一次循环调用B"""
+#         if not self.running:
+#             return
+#         self._call_function_B()
+#         self.count += 1
+#         # 准备后续循环
+#         self._next_cycle()
+
+#     def _next_cycle(self):
+#         """后续循环：每次9秒后调用A，然后1秒后调用B，重复"""
+#         if not self.running:
+#             return
+#         threading.Timer(9, self._next_cycle_A).start()
+
+#     def _next_cycle_A(self):
+#         if not self.running:
+#             return
+#         self._call_function_A()
+#         threading.Timer(1, self._next_cycle_B).start()
+
+#     def _next_cycle_B(self):
+#         if not self.running:
+#             return
+#         self._call_function_B()
+#         self.count += 1
+#         # 再次进入下一轮循环
+#         self._next_cycle()
+
+#     def _call_function_A(self):
+#         Room.updateTemp(self.roomId)
+
+#     def _call_function_B(self):
+#         Room.updateState(self.roomId)
 class RoomTimer:
     def __init__(self, newroomId):
         self.running = False
@@ -905,3 +1056,202 @@ class RoomTimer:
 
     def _call_function_B(self):
         Room.updateState(self.roomId)
+
+# 顾客类
+class Customer:
+    # 存储所有顾客实例的列表
+    customerList = []
+    
+    def __init__(self, custId, custName, phoneNumber, checkInDate):
+        self.custId = custId
+        self.custName = custName
+        self.phoneNumber = phoneNumber
+        self.checkInDate = checkInDate
+        self.roomId = None  # 关联的房间号
+    
+    @classmethod
+    def createCustomer(cls, custId, custName, phoneNumber, checkInDate):
+        """创建新顾客"""
+        # 检查是否已存在相同ID的顾客
+        if any(cust.custId == custId for cust in cls.customerList):
+            print(f"顾客ID {custId} 已存在")
+            return False
+            
+        # 创建新顾实例
+        newCustomer = Customer(custId, custName, phoneNumber, checkInDate)
+        cls.customerList.append(newCustomer)
+        print(f"创建新顾客 - ID: {custId}, 姓名: {custName}")
+        return True
+    
+    @classmethod
+    def findCustomer(cls, custId):
+        """查找顾客"""
+        for customer in cls.customerList:
+            if customer.custId == custId:
+                return customer
+        return None
+
+# 住宿订单类
+class AccommodationOrder:
+    # 存储所有订单实例的列表
+    orderList = []
+    
+    def __init__(self, customerId, roomId, checkInDate):
+        self.customerId = customerId
+        self.roomId = roomId
+        self.checkInDate = checkInDate
+        self.status = "active"  # active 或 completed
+    
+    @classmethod
+    def createOrder(cls, customerId, roomId):
+        """创建新订单"""
+        try:
+            # 检查房间是否存在
+            room = Room.getRoom(roomId)
+            if not room:
+                print(f"房间 {roomId} 不存在")
+                return False
+                
+            # 检查房间是否已被占用
+            if room.isOccupied:
+                print(f"房间 {roomId} 已被占用")
+                return False
+            
+            # 查找顾客
+            customer = Customer.findCustomer(customerId)
+            if not customer:
+                print(f"未找到顾客 ID: {customerId}")
+                return False
+            
+            # 创建新订单
+            newOrder = AccommodationOrder(customerId, roomId, customer.checkInDate)
+            cls.orderList.append(newOrder)
+            
+            # 更新顾客关联的房间号
+            customer.roomId = roomId
+            
+            # 更新房间状态
+            room.isOccupied = True
+            room.currentCustomerId = customerId
+            room.checkInTime = customer.checkInDate
+            print(f"房间 {roomId} 状态已更新 - 入住顾客ID: {customerId}")
+            
+            return True
+            
+        except Exception as e:
+            print(f"创建订单时发生错误: {str(e)}")
+            return False
+    
+    @classmethod
+    def findActiveOrderByRoom(cls, roomId):
+        """查找房间的活动订单"""
+        for order in cls.orderList:
+            if order.roomId == roomId and order.status == "active":
+                return order
+        return None
+
+    @classmethod
+    def checkout(cls, roomId):
+        """处理退房"""
+        try:
+            # 1. 查找活动订单
+            order = cls.findActiveOrderByRoom(roomId)
+            if not order:
+                print(f"房间 {roomId} 没有活动订单")
+                return None
+                
+            # 2. 查找顾客信息
+            customer = Customer.findCustomer(order.customerId)
+            if not customer:
+                print(f"未找到顾客信息")
+                return None
+                
+            # 获取房间对象
+            room = Room.getRoom(roomId)
+            if not room:
+                print(f"未找到房间信息")
+                return None
+            
+            # 3. 计算费用
+            from datetime import datetime
+            check_out_time = datetime.now()
+            check_in_time = datetime.strptime(order.checkInDate, "%Y-%m-%dT%H:%M")
+            days = (check_out_time - check_in_time).days + 1
+            
+            # 4. 计算各项费用
+            # 根据房间号设置基础费用
+            base_fee_per_day = {
+                101: 100,
+                102: 125,
+                103: 150,
+                104: 200,
+                105: 100
+            }.get(room.roomId, 100)  # 默认100
+            
+            accommodation_fee = days * base_fee_per_day
+            
+            # 计算空调费用
+            # 每度温度变化收费1元，与风速无关
+            ac_fee = room.total_temp_change   # 每度温度变化1元
+            
+            # 重置温度变化计数
+            room.total_temp_change = 0
+            
+            total_fee = accommodation_fee + ac_fee
+            
+            # 5. 更新状态
+            order.status = "completed"
+            room.isOccupied = False
+            room.currentCustomerId = None
+            
+            # 返回结账详情
+            checkout_details = {
+                "customer_name": customer.custName,
+                "check_in_time": check_in_time.strftime("%Y-%m-%d %H:%M"),
+                "check_out_time": check_out_time.strftime("%Y-%m-%d %H:%M"),
+                "days": days,
+                "base_fee_per_day": base_fee_per_day,
+                "accommodation_fee": accommodation_fee,
+                "ac_fee": round(ac_fee, 2),  # 保留两位小数
+                "total_fee": round(total_fee, 2)
+            }
+            
+            return checkout_details
+            
+        except Exception as e:
+            print(f"结账过程中发生错误: {str(e)}")
+            return None
+
+# 前台类
+class Receptionist:
+    @staticmethod
+    def registerCustomer(custId, custName, phoneNumber, checkInDate):
+        """注册顾客信息"""
+        return Customer.createCustomer(custId, custName, phoneNumber, checkInDate)
+    
+    @staticmethod
+    def checkRoomState(date):
+        """检查房间状态"""
+        roomStates = []
+        for room in Room.RoomList:
+            # 查找房间是否有活动订单
+            order = AccommodationOrder.findActiveOrderByRoom(room.roomId)
+            state = {
+                "room_id": room.roomId,
+                "status": "已入住" if order else "空闲",
+                "customer": None
+            }
+            
+            if order:
+                customer = Customer.findCustomer(order.customerId)
+                if customer:
+                    state["customer"] = customer.custName
+                    
+            roomStates.append(state)
+            
+        return roomStates
+    
+    @staticmethod
+    def createAccommodationOrder(customerId, roomId):
+        """创建住宿订单"""
+        return AccommodationOrder.createOrder(customerId, roomId)

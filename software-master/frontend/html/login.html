@@ -12,43 +12,60 @@
             <img src="../assest/logo.png" alt="Hotel Logo">
         </div>
     </header>
-
     <!-- Login Form Section -->
     <div class="login-container">
-        <h2>Login</h2>
+        <h2>登录系统</h2>
         
         <!-- Identity Selection -->
         <div class="identity-selection">
-            <button id="userLoginBtn">User Login</button>
-            <button id="adminLoginBtn">Admin Login</button>
+            <button id="userLoginBtn" class="login-type-btn">顾客登录</button>
+            <button id="adminLoginBtn" class="login-type-btn">管理员登录</button>
+            <button id="frontDeskLoginBtn" class="login-type-btn">前台登录</button>
         </div>
 
-        <!-- User Login Form (Initially hidden) -->
-        <form id="userLoginForm" class="login-form" style="display: none;">
-            <div class="input-group">
-                <label for="username">Room Number</label>
-                <input type="text" id="username" name="username" placeholder="Enter room number" required />
+        <!-- User Login Form -->
+        <form id="userLoginForm" class="login-form">
+            <h2>顾客登录</h2>
+            <div class="form-group">
+                <label for="room-number">房间号</label>
+                <input type="text" id="room-number" placeholder="请输入房间号" required>
             </div>
-            <div class="input-group">
-                <label for="password">ID Card Number</label>
-                <input type="password" id="password" name="password" placeholder="Enter ID card number" required />
+            <div class="form-group">
+                <label for="customer-id">房卡ID</label>
+                <input type="text" id="customer-id" placeholder="请输入房卡ID" required>
             </div>
-            <button type="submit">Login</button>
+            <button type="submit" class="submit-btn">登录</button>
         </form>
 
-        <!-- Admin Login Form (Initially hidden) -->
-        <form id="adminLoginForm" class="login-form" style="display: none;">
-            <div class="input-group">
-                <label for="adminUsername">Username</label>
-                <input type="text" id="adminUsername" name="adminUsername" placeholder="Enter admin username" required />
+        <!-- Admin Login Form -->
+        <form id="adminLoginForm" class="login-form">
+            <h2>管理员登录</h2>
+            <div class="form-group">
+                <label for="adminUsername">用户名</label>
+                <input type="text" id="adminUsername" placeholder="请输入管理员用户名" required>
             </div>
-            <div class="input-group">
-                <label for="adminPassword">Password</label>
-                <input type="password" id="adminPassword" name="adminPassword" placeholder="Enter admin password" required />
+            <div class="form-group">
+                <label for="adminPassword">密码</label>
+                <input type="password" id="adminPassword" placeholder="请输入管理员密码" required>
             </div>
-            <button type="submit">Login</button>
+            <button type="submit" class="submit-btn">登录</button>
         </form>
 
+        <!-- Front Desk Login Form -->
+        <form id="frontDeskLoginForm" class="login-form">
+            <h2>前台登录</h2>
+            <div class="form-group">
+                <label for="frontDeskUsername">工号</label>
+                <input type="text" id="frontDeskUsername" placeholder="请输入前台工号" required>
+            </div>
+            <div class="form-group">
+                <label for="frontDeskPassword">密码</label>
+                <input type="password" id="frontDeskPassword" placeholder="请输入前台密码" required>
+            </div>
+            <button type="submit" class="submit-btn">登录</button>
+        </form>
+
+        <!-- Error Message Display -->
         <div id="error-message" class="error-message"></div>
     </div>
 
